@@ -6,14 +6,8 @@ const {
   addContact,
   removeContact,
   updateContact,
+  updateStatusContact,
 } = require("../../controllers/contacts");
-const Joi = require("joi");
-
-const contactSchema = Joi.object({
-  name: Joi.string().required(),
-  email: Joi.string().email().required(),
-  phone: Joi.string().required(),
-});
 
 router.get("/", listContacts);
 
@@ -24,5 +18,7 @@ router.post("/", addContact);
 router.delete("/:contactId", removeContact);
 
 router.put("/:contactId", updateContact);
+
+router.patch("/:contactId/favorite", updateStatusContact);
 
 module.exports = router;

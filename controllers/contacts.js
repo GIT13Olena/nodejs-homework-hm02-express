@@ -1,41 +1,8 @@
-const fs = require("fs/promises");
-const path = require("path");
-const Joi = require("joi");
-
-const contactsPath = path.join(__dirname, "../data/contacts.json");
-
-const readContactsFile = async () => {
-  try {
-    const data = await fs.readFile(contactsPath, "utf-8");
-    return JSON.parse(data);
-  } catch (error) {
-    throw error;
-  }
-};
-
-const writeContactsFile = async (contacts) => {
-  try {
-    await fs.writeFile(contactsPath, JSON.stringify(contacts));
-  } catch (error) {
-    throw error;
-  }
-};
-
-const contactSchema = Joi.object({
-  name: Joi.string().required(),
-  email: Joi.string().email().required(),
-  phone: Joi.string().required(),
-});
-
-const contactUpdateSchema = Joi.object({
-  name: Joi.string(),
-  email: Joi.string().email(),
-  phone: Joi.string(),
-});
+const Contact = require("../models/contacts");
 
 const listContacts = async (req, res) => {
   try {
-    const contacts = await readContactsFile();
+    const contacts = await Contact.find();
     res.json(contacts);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -44,8 +11,7 @@ const listContacts = async (req, res) => {
 
 const getById = async (req, res) => {
   try {
-    const contacts = await readContactsFile();
-    const contact = contacts.find((c) => c.id === req.params.contactId);
+    const contact = await Contact.findById(req.params.contactId);
     if (contact) {
       res.json(contact);
     } else {
@@ -59,17 +25,7 @@ const getById = async (req, res) => {
 const addContact = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
-    const { error } = contactSchema.validate(req.body); // Валідація даних
-    if (error) {
-      res.status(400).json({ message: error.details[0].message });
-      return;
-    }
-
-    const contacts = await readContactsFile();
-    const newContact = { id: Date.now().toString(), name, email, phone };
-    contacts.push(newContact);
-    await writeContactsFile(contacts);
-
+    const newContact = await Contact.create({ name, email, phone });
     res.status(201).json(newContact);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -78,12 +34,8 @@ const addContact = async (req, res) => {
 
 const removeContact = async (req, res) => {
   try {
-    const contacts = await readContactsFile();
-    const index = contacts.findIndex((c) => c.id === req.params.contactId);
-
-    if (index !== -1) {
-      contacts.splice(index, 1);
-      await writeContactsFile(contacts);
+    const deletedContact = await Contact.findByIdAndDelete(req.params.contactId);
+    if (deletedContact) {
       res.json({ message: "contact deleted" });
     } else {
       res.status(404).json({ message: "Not found" });
@@ -96,19 +48,34 @@ const removeContact = async (req, res) => {
 const updateContact = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
-    const { error } = contactUpdateSchema.validate(req.body); // Валідація даних
-    if (error) {
-      res.status(400).json({ message: error.details[0].message });
-      return;
+    const updatedContact = await Contact.findByIdAndUpdate(
+      req.params.contactId,
+      { name, email, phone },
+      { new: true }
+    );
+    if (updatedContact) {
+      res.json(updatedContact);
+    } else {
+      res.status(404).json({ message: "Not found" });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateStatusContact = async (req, res) => {
+  try {
+    const { favorite } = req.body;
+    if (favorite === undefined) {
+      return res.status(400).json({ message: "missing field favorite" });
     }
 
-    const contacts = await readContactsFile();
-    const index = contacts.findIndex((c) => c.id === req.params.contactId);
-
-    if (index !== -1) {
-      const updatedContact = { ...contacts[index], name, email, phone };
-      contacts[index] = updatedContact;
-      await writeContactsFile(contacts);
+    const updatedContact = await Contact.findByIdAndUpdate(
+      req.params.contactId,
+      { favorite },
+      { new: true }
+    );
+    if (updatedContact) {
       res.json(updatedContact);
     } else {
       res.status(404).json({ message: "Not found" });
@@ -124,4 +91,5 @@ module.exports = {
   addContact,
   removeContact,
   updateContact,
+  updateStatusContact,
 };
