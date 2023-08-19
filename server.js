@@ -7,7 +7,7 @@ const {DB_HOST} = process.env;
 mongoose.connect(DB_HOST, {
   useNewUrlParser: true,
     useUnifiedTopology: true,
-    useFindAndModify: false,
+    // useFindAndModify: false,
 })
     .then(() => {
       app.listen(3000)
