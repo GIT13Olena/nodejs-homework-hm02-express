@@ -1,6 +1,9 @@
+const multer = require("multer");
+const path = require("path");
+const jwt = require("jsonwebtoken");
 const User = require("../models/users");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+const gravatar = require("gravatar");
 
 const registerUser = async (req, res) => {
   const { email, password } = req.body;
@@ -12,7 +15,20 @@ const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ email, password: hashedPassword });
+
+    let avatarURL;
+
+    if (req.file) {
+      avatarURL = `/avatars/${req.file.filename}`;
+    } else {
+      avatarURL = gravatar.url(email, { s: "250", d: "retro" });
+    }
+
+    const newUser = await User.create({
+      email,
+      password: hashedPassword,
+      avatarURL,
+    });
 
     const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
@@ -22,6 +38,7 @@ const registerUser = async (req, res) => {
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
+        avatarURL,
       },
       token,
     });
@@ -29,6 +46,8 @@ const registerUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
 
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
@@ -67,8 +86,21 @@ const getCurrentUser = (req, res) => {
   });
 };
 
+const updateAvatar = async (req, res) => {
+  try {
+    const avatarURL = req.file ? `/avatars/${req.file.filename}` : undefined;
+    req.user.avatarURL = avatarURL;
+    await req.user.save();
+
+    res.status(200).json({ avatarURL });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getCurrentUser,
+  updateAvatar,
 };
